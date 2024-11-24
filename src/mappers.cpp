@@ -11,7 +11,10 @@
 
 #include "mappers.h"
 
-using std::string, std::pair, std::set, std::queue;
+using std::string;
+using std::pair;
+using std::set;
+using std::queue;
 
 /**
  * @brief removes unwanted character from word and converts to lowercase

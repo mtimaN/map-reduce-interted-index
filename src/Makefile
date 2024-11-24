@@ -12,7 +12,7 @@ all: build
 
 # Rule to build the target
 build: $(OBJS)
-	$(CXX) $(OBJS) -o $(TARGET) $(CXXFLAGS)
+	$(CXX) $(OBJS) -o $(TARGET) $(CXXFLAGS) $(TSAN_OPTIONS)
 
 # Rule to build object files
 %.o: %.cpp

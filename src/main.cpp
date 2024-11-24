@@ -6,6 +6,7 @@
 #include <fstream>
 #include <queue>
 #include <set>
+#include <chrono>
 
 #include "mappers.h"
 #include "reducers.h"
@@ -19,8 +20,9 @@ typedef struct thread_function_args {
     pthread_mutex_t *reducers_tasks_mutex;
     pthread_barrier_t *map_reduce_barrier;
 
-    std::queue<std::map<std::string, std::set<int>>> *reduce_maps;
+    std::vector<std::map<std::string, std::set<int>>> *reduce_maps;
     pthread_barrier_t *reducers_barrier;
+    std::map<std::string, std::set<int>> *final_map;
     std::queue<std::pair<char, std::pair<std::map<std::string,
     std::set<int>>::iterator, std::map<std::string, std::set<int>>::iterator>>> *output_tasks;
 } thread_function_args_t;
@@ -32,14 +34,19 @@ void *thread_function(void *args) {
         auto partial_map = map(*typed_args->file_queue, typed_args->file_names_mutex);
 
         pthread_mutex_lock(typed_args->reducers_tasks_mutex);
-        typed_args->reduce_maps->push(partial_map);
+        typed_args->reduce_maps->push_back(partial_map);
         pthread_mutex_unlock(typed_args->reducers_tasks_mutex);
 
         pthread_barrier_wait(typed_args->map_reduce_barrier);
     } else {
         pthread_barrier_wait(typed_args->map_reduce_barrier);
-        reduce(*typed_args->reduce_maps, typed_args->reducers_tasks_mutex,
-               typed_args->reducers_barrier, *typed_args->output_tasks);
+        reduce(typed_args->thread_id - typed_args->no_of_mappers,
+               typed_args->no_of_reducers,
+               *typed_args->reduce_maps,
+               *typed_args->final_map,
+               typed_args->reducers_tasks_mutex,
+               typed_args->reducers_barrier,
+               *typed_args->output_tasks);
     }
 
     return NULL;
@@ -60,6 +67,7 @@ std::queue<std::pair<std::string, int>> parse_input(std::string input_file) {
     }
 
     fin.close();
+
     return file_queue;
 }
 
@@ -92,13 +100,14 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    std::queue<std::map<std::string, std::set<int>>> reduce_maps;
+    std::vector<std::map<std::string, std::set<int>>> reduce_maps;
     std::queue<std::pair<char, std::pair<std::map<std::string,
     std::set<int>>::iterator, std::map<std::string, std::set<int>>::iterator>>> output_tasks;
+    std::map<std::string, std::set<int>> final_map;
 
     for (unsigned int i = 0; i < mappers + reducers; ++i) {
         args[i] = thread_function_args_t{i, mappers, reducers, &file_info, &file_names_mutex,
-            &reducers_tasks_mutex, &map_reduce_barrier, &reduce_maps, &reducers_barrier, &output_tasks};
+            &reducers_tasks_mutex, &map_reduce_barrier, &reduce_maps, &reducers_barrier, &final_map, &output_tasks};
         int r = pthread_create(&threads[i], NULL, thread_function, &args[i]);
 
         if (r) {
