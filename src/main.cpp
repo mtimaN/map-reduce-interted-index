@@ -18,10 +18,11 @@ typedef struct thread_function_args {
     pthread_mutex_t *file_names_mutex;
     pthread_mutex_t *reducers_tasks_mutex;
     pthread_barrier_t *map_reduce_barrier;
-    bool *val;
 
     std::queue<std::map<std::string, std::set<int>>> *reduce_maps;
     pthread_barrier_t *reducers_barrier;
+    std::queue<std::pair<char, std::pair<std::map<std::string,
+    std::set<int>>::iterator, std::map<std::string, std::set<int>>::iterator>>> *output_tasks;
 } thread_function_args_t;
 
 void *thread_function(void *args) {
@@ -37,23 +38,10 @@ void *thread_function(void *args) {
         pthread_barrier_wait(typed_args->map_reduce_barrier);
     } else {
         pthread_barrier_wait(typed_args->map_reduce_barrier);
-        reduce(*typed_args->reduce_maps, typed_args->reducers_tasks_mutex);
+        reduce(*typed_args->reduce_maps, typed_args->reducers_tasks_mutex,
+               typed_args->reducers_barrier, *typed_args->output_tasks);
     }
 
-    pthread_barrier_wait(typed_args->map_reduce_barrier);
-    pthread_mutex_lock(typed_args->reducers_tasks_mutex);
-    if (*typed_args->val) {
-        for (const auto &p : typed_args->reduce_maps->front()) {
-            std::cout << p.first << " [ ";
-            for (const auto &val : p.second) {
-                std::cout << val << ' ';
-            }
-            std::cout << "]\n";
-        } 
-
-        *typed_args->val = false;
-    }
-    pthread_mutex_unlock(typed_args->reducers_tasks_mutex);
     return NULL;
 }
 
@@ -66,7 +54,7 @@ std::queue<std::pair<std::string, int>> parse_input(std::string input_file) {
     no_of_entries = stoi(line);
 
     std::queue<std::pair<std::string, int>> file_queue;
-    for (int i = 0; i < no_of_entries; ++i) {
+    for (int i = 1; i <= no_of_entries; ++i) {
         getline(fin, line);
         file_queue.push({line, i});
     }
@@ -105,11 +93,12 @@ int main(int argc, char **argv)
     }
 
     std::queue<std::map<std::string, std::set<int>>> reduce_maps;
-    bool *val = new bool;
-    *val = true;
+    std::queue<std::pair<char, std::pair<std::map<std::string,
+    std::set<int>>::iterator, std::map<std::string, std::set<int>>::iterator>>> output_tasks;
+
     for (unsigned int i = 0; i < mappers + reducers; ++i) {
         args[i] = thread_function_args_t{i, mappers, reducers, &file_info, &file_names_mutex,
-            &reducers_tasks_mutex, &map_reduce_barrier, val, &reduce_maps, &reducers_barrier};
+            &reducers_tasks_mutex, &map_reduce_barrier, &reduce_maps, &reducers_barrier, &output_tasks};
         int r = pthread_create(&threads[i], NULL, thread_function, &args[i]);
 
         if (r) {
@@ -134,6 +123,5 @@ int main(int argc, char **argv)
     pthread_barrier_destroy(&reducers_barrier);
     delete[](args);
     delete[](threads);
-    delete(val);
     return 0;
 }

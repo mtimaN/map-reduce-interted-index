@@ -23,7 +23,7 @@ static string clean_word(const string& word) {
 
     string cleaned = word;
     cleaned.erase(std::remove_if(cleaned.begin(), cleaned.end(), [](char c) {
-        return c == ',' || c == '.' || c == '\'';
+        return !isalpha(c);
     }), cleaned.end());
 
     std::transform(cleaned.begin(), cleaned.end(), cleaned.begin(), [](unsigned char c) {
