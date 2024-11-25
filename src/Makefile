@@ -1,6 +1,6 @@
 # Compiler and flags
 CXX := g++
-CXXFLAGS := -g -lpthread -Wall -Werror
+CXXFLAGS := -lpthread -Wall -Werror -Wextra
 
 # Source files and output
 SRCS := main.cpp mappers.cpp reducers.cpp

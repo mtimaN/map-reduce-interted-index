@@ -6,7 +6,6 @@
 #include <fstream>
 #include <queue>
 #include <set>
-#include <chrono>
 
 #include "mappers.h"
 #include "reducers.h"
@@ -20,11 +19,9 @@ typedef struct thread_function_args {
     pthread_mutex_t *reducers_tasks_mutex;
     pthread_barrier_t *map_reduce_barrier;
 
+    // shared variables empty at first
     std::vector<std::map<std::string, std::set<int>>> *reduce_maps;
-    pthread_barrier_t *reducers_barrier;
-    std::map<std::string, std::set<int>> *final_map;
-    std::queue<std::pair<char, std::pair<std::map<std::string,
-    std::set<int>>::iterator, std::map<std::string, std::set<int>>::iterator>>> *output_tasks;
+    std::queue<char> *char_queue;
 } thread_function_args_t;
 
 void *thread_function(void *args) {
@@ -40,13 +37,9 @@ void *thread_function(void *args) {
         pthread_barrier_wait(typed_args->map_reduce_barrier);
     } else {
         pthread_barrier_wait(typed_args->map_reduce_barrier);
-        reduce(typed_args->thread_id - typed_args->no_of_mappers,
-               typed_args->no_of_reducers,
-               *typed_args->reduce_maps,
-               *typed_args->final_map,
+        reduce(*typed_args->reduce_maps,
                typed_args->reducers_tasks_mutex,
-               typed_args->reducers_barrier,
-               *typed_args->output_tasks);
+               *typed_args->char_queue);
     }
 
     return NULL;
@@ -92,22 +85,20 @@ int main(int argc, char **argv)
     pthread_mutex_t reducers_tasks_mutex;
     pthread_mutex_init(&reducers_tasks_mutex, NULL);
 
-    pthread_barrier_t reducers_barrier;
-    pthread_barrier_init(&reducers_barrier, NULL, reducers);
-
     auto file_info = parse_input(argv[3]);
     if (file_info.size() == 0) {
         return 0;
     }
 
     std::vector<std::map<std::string, std::set<int>>> reduce_maps;
-    std::queue<std::pair<char, std::pair<std::map<std::string,
-    std::set<int>>::iterator, std::map<std::string, std::set<int>>::iterator>>> output_tasks;
-    std::map<std::string, std::set<int>> final_map;
+    std::queue<char> char_queue;
+    for (char i = 'a'; i <= 'z'; ++i) {
+        char_queue.push(i);
+    }
 
     for (unsigned int i = 0; i < mappers + reducers; ++i) {
         args[i] = thread_function_args_t{i, mappers, reducers, &file_info, &file_names_mutex,
-            &reducers_tasks_mutex, &map_reduce_barrier, &reduce_maps, &reducers_barrier, &final_map, &output_tasks};
+            &reducers_tasks_mutex, &map_reduce_barrier, &reduce_maps, &char_queue};
         int r = pthread_create(&threads[i], NULL, thread_function, &args[i]);
 
         if (r) {
@@ -129,7 +120,6 @@ int main(int argc, char **argv)
     pthread_barrier_destroy(&map_reduce_barrier);
     pthread_mutex_destroy(&file_names_mutex);
     pthread_mutex_destroy(&reducers_tasks_mutex);
-    pthread_barrier_destroy(&reducers_barrier);
     delete[](args);
     delete[](threads);
     return 0;

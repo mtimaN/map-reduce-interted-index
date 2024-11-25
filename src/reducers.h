@@ -8,10 +8,15 @@
 #include <map>
 
 
-void reduce(unsigned int id, unsigned int number_of_reducers,
-	    std::vector<std::map<std::string, std::set<int>>> &reduce_maps,
-	    std::map<std::string, std::set<int>> &final_map,
-	    pthread_mutex_t *reducers_tasks_mutex, pthread_barrier_t *reducers_barrier,
-	    std::queue<std::pair<char, std::pair<std::map<std::string,
-	    std::set<int>>::iterator, std::map<std::string, std::set<int>>::iterator>>>
-	    &output_tasks);
+/**
+ * @brief receives a vector of partial maps and writes to disk as such:
+ * <x>.txt - the complete list of all words starting with <x> and the ids of files
+ * where such word occurs
+ *
+ * @param reduce_maps the list of partial maps
+ * @param reducers_tasks_mutex mutex used for popping out of the queue
+ * @param char_queue the given alphabet
+ */
+void reduce(std::vector<std::map<std::string, std::set<int>>> &reduce_maps,
+	    pthread_mutex_t *reducers_tasks_mutex, std::queue<char> &char_queue);
+
