@@ -7,7 +7,7 @@
 
 #include "reducers.h"
 
-bool comp_entries(std::pair<std::string, std::set<int>> &a,
+static bool comp_entries(std::pair<std::string, std::set<int>> &a,
                   std::pair<std::string, std::set<int>> &b) {
     if (a.second.size() == b.second.size()) {
         return a.first < b.first;

@@ -28,6 +28,7 @@ void *thread_function(void *args) {
     thread_function_args_t *typed_args = (thread_function_args_t*) args;
 
     if (typed_args->thread_id < typed_args->no_of_mappers) {
+        // mapper
         auto partial_map = map(*typed_args->file_queue, typed_args->file_names_mutex);
 
         pthread_mutex_lock(typed_args->reducers_tasks_mutex);
@@ -36,6 +37,7 @@ void *thread_function(void *args) {
 
         pthread_barrier_wait(typed_args->map_reduce_barrier);
     } else {
+        // reducer
         pthread_barrier_wait(typed_args->map_reduce_barrier);
         reduce(*typed_args->reduce_maps,
                typed_args->reducers_tasks_mutex,
